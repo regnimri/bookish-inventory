@@ -726,3 +726,661 @@
               </h1>
               <p className="text-gray-600 text-sm mb-4">
                 Curated book inventory system for your traveling book
+</p>
+              
+              {/* Navigation */}
+              <nav className="flex gap-2 overflow-x-auto">
+                {[
+                  { key: 'scan', label: 'Scan & Add', icon: '📱' },
+                  { key: 'inventory', label: 'Inventory', icon: '📚' },
+                  { key: 'checkout', label: 'Sell Books', icon: '🛒' },
+                  { key: 'analytics', label: 'Analytics', icon: '📊' },
+                  { key: 'settings', label: 'Settings', icon: '⚙️' }
+                ].map(tab => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setView(tab.key)}
+                    className={classNames(
+                      "flex items-center gap-2 px-4 py-2 rounded-lg font-medium whitespace-nowrap",
+                      view === tab.key 
+                        ? "bg-blue-600 text-white shadow-md" 
+                        : "bg-white text-gray-700 hover:bg-gray-50 shadow-sm"
+                    )}
+                  >
+                    <span>{tab.icon}</span>
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </nav>
+            </header>
+
+            {/* Scan & Add View */}
+            {view === 'scan' && (
+              <div className="grid lg:grid-cols-2 gap-6">
+                <div className="space-y-6">
+                  {/* Scanner Section */}
+                  <section className="bg-white rounded-xl shadow-sm p-6">
+                    <h2 className="text-xl font-semibold mb-4">Book Scanner</h2>
+                    <EnhancedBarcodeScanner onDetected={handleDetected} />
+                  </section>
+
+                  {/* Manual Search */}
+                  <section className="bg-white rounded-xl shadow-sm p-6">
+                    <h2 className="text-xl font-semibold mb-4">Manual Search</h2>
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <select 
+                          value={mode} 
+                          onChange={(e) => setMode(e.target.value)}
+                          className="px-3 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="isbn">ISBN</option>
+                          <option value="title">Title</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={query}
+                          onChange={(e) => setQuery(e.target.value)}
+                          placeholder={mode === 'isbn' ? '9780385547345' : 'Book title...'}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                          onKeyPress={(e) => e.key === 'Enter' && handleLookup()}
+                        />
+                        <button
+                          onClick={() => handleLookup()}
+                          disabled={loading}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {loading ? 'Searching...' : 'Search'}
+                        </button>
+                      </div>
+                      
+                      {/* Search Results */}
+                      {mode === 'title' && results.length > 1 && (
+                        <div className="border rounded-lg max-h-48 overflow-y-auto">
+                          {results.map((result, i) => (
+                            <button
+                              key={i}
+                              onClick={() => setCurrent(result)}
+                              className={classNames(
+                                "w-full text-left p-3 border-b last:border-b-0 hover:bg-gray-50",
+                                current === result ? "bg-blue-50" : ""
+                              )}
+                            >
+                              <div className="font-medium text-sm">{result.title}</div>
+                              <div className="text-xs text-gray-600">
+                                {result.authors.join(', ')} • {result.publishedDate}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                </div>
+
+                {/* Book Details & Add */}
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h2 className="text-xl font-semibold mb-4">Book Details</h2>
+                  
+                  {!current && (
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="text-4xl mb-2">📖</div>
+                      <p>Scan a barcode or search for a book to get started</p>
+                    </div>
+                  )}
+                  
+                  {current && (
+                    <div className="space-y-4">
+                      <div className="flex gap-4">
+                        {current.thumbnail ? (
+                          <img 
+                            src={current.thumbnail} 
+                            alt={current.title}
+                            className="w-20 h-28 object-cover rounded-lg shadow-sm"
+                          />
+                        ) : (
+                          <div className="w-20 h-28 bg-gray-200 rounded-lg flex items-center justify-center">
+                            <span className="text-gray-400 text-xs">No Image</span>
+                          </div>
+                        )}
+                        
+                        <div className="flex-1 space-y-2">
+                          <h3 className="font-semibold text-lg">{current.title}</h3>
+                          <p className="text-gray-600">{current.authors.join(', ')}</p>
+                          <div className="text-sm text-gray-500 space-y-1">
+                            <div>📅 {current.publishedDate} • 📖 {current.pageCount || '?'} pages</div>
+                            <div>⭐ {current.averageRating || '?'}/5 ({current.ratingsCount || 0} ratings)</div>
+                            <div>💰 List: {current.listPrice || 'Not available'}</div>
+                            {current.categories.length > 0 && (
+                              <div>🏷️ {current.categories.join(', ')}</div>
+                            )}
+                          </div>
+                          
+                          {/* Auto-generated tags preview */}
+                          {current && (
+                            <div className="mt-2">
+                              <div className="text-xs text-gray-500 mb-1">Suggested tags:</div>
+                              <div className="flex flex-wrap gap-1">
+                                {enhancedTagging(current.categories, current.description, current.title)
+                                  .slice(0, 5).map(tag => (
+                                  <span key={tag} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Pricing & Blind Date Info */}
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                          <div>
+                            <div className="text-sm font-medium mb-1">Suggested Bucket</div>
+                            {(() => {
+                              const bucket = suggestBucket(current, buckets);
+                              return (
+                                <span className={bucketChipClass(bucket.color)}>
+                                  {bucket.label} (${bucket.price})
+                                </span>
+                              );
+                            })()}
+                          </div>
+                          
+                          <div>
+                            <div className="text-sm font-medium mb-1">Blind Date Candidate</div>
+                            <div className="text-sm">
+                              {isGoodBlindDateCandidate(current, purchaseCost) ? (
+                                <span className="text-green-600 font-medium">✓ Yes</span>
+                              ) : (
+                                <span className="text-gray-500">✗ No</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {isGoodBlindDateCandidate(current, purchaseCost) && (
+                          <div className="text-xs text-gray-600 italic">
+                            "{suggestBlindDateTheme(current)}"
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Input Fields */}
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Purchase Cost
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={purchaseCost}
+                            onChange={(e) => setPurchaseCost(e.target.value)}
+                            placeholder="2.50"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Condition
+                          </label>
+                          <select
+                            value={condition}
+                            onChange={(e) => setCondition(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          >
+                            <option value="New">New</option>
+                            <option value="Like New">Like New</option>
+                            <option value="Very Good">Very Good</option>
+                            <option value="Good">Good</option>
+                            <option value="Fair">Fair</option>
+                          </select>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Notes
+                          </label>
+                          <input
+                            type="text"
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            placeholder="Shelf location, series info..."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={addToInventory}
+                        className="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors"
+                      >
+                        Add to Inventory
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Inventory View */}
+            {view === 'inventory' && (
+              <div className="space-y-6">
+                {/* Inventory Header */}
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <h2 className="text-xl font-semibold">Your Inventory</h2>
+                      <p className="text-gray-600">
+                        {inventory.length} total books • {inventory.filter(b => !b.sold).length} available • {inventory.filter(b => b.sold).length} sold
+                      </p>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                        placeholder="Filter by title, author, tag, ISBN..."
+                        className="px-3 py-2 border border-gray-300 rounded-lg w-64"
+                      />
+                      <button
+                        onClick={exportMasterFile}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                      >
+                        Export Master File
+                      </button>
+                      <button
+                        onClick={exportInventoryCSV}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      >
+                        Export w/ Timestamp
+                      </button>
+                      <button
+                        onClick={exportClaudeData}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                      >
+                        Export for Claude
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Inventory Table */}
+                <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Book</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tags</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bucket</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {filteredInventory.map((book) => (
+                          <tr key={book.id} className={book.sold ? "bg-gray-50" : ""}>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center">
+                                {book.thumbnail ? (
+                                  <img className="h-12 w-8 object-cover rounded mr-4" src={book.thumbnail} alt="" />
+                                ) : (
+                                  <div className="h-12 w-8 bg-gray-200 rounded mr-4"></div>
+                                )}
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">{book.title}</div>
+                                  <div className="text-sm text-gray-500">{book.authors.join(', ')}</div>
+                                  <div className="text-xs text-gray-400">
+                                    {book.publishedDate} • {estimateReadingTime(book.pageCount).pace}
+                                    {book.averageRating && ` • ⭐${book.averageRating}`}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-wrap gap-1">
+                                {(book.tags || []).slice(0, 3).map(tag => (
+                                  <span key={tag} className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">
+                                    {tag}
+                                  </span>
+                                ))}
+                                {book.tags && book.tags.length > 3 && (
+                                  <span className="text-xs text-gray-500">+{book.tags.length - 3}</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={bucketChipClass(book.bucketColor)}>
+                                {book.bucketColor}
+                              </span>
+                              {book.blindDateCandidate && (
+                                <div className="text-xs text-yellow-600 mt-1">🎁 Blind Date</div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              ${book.targetPrice}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              {book.purchaseCost ? `$${book.purchaseCost}` : '-'}
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={classNames(
+                                "px-2 inline-flex text-xs leading-5 font-semibold rounded-full",
+                                book.sold 
+                                  ? "bg-green-100 text-green-800" 
+                                  : "bg-blue-100 text-blue-800"
+                              )}>
+                                {book.sold ? 'Sold' : 'Available'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium space-x-2">
+                              <button
+                                onClick={() => toggleSold(book.id)}
+                                className={classNames(
+                                  "text-sm px-2 py-1 rounded",
+                                  book.sold 
+                                    ? "text-blue-600 hover:text-blue-900" 
+                                    : "text-green-600 hover:text-green-900"
+                                )}
+                              >
+                                {book.sold ? 'Mark Available' : 'Mark Sold'}
+                              </button>
+                              <button
+                                onClick={() => removeFromInventory(book.id)}
+                                className="text-red-600 hover:text-red-900 text-sm px-2 py-1 rounded"
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    
+                    {filteredInventory.length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <div className="text-4xl mb-2">📚</div>
+                        <p>No books found matching your filter</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Analytics View */}
+            {view === 'analytics' && (
+              <div className="grid lg:grid-cols-2 gap-6">
+                <InventoryStats inventory={inventory} />
+                <TagBreakdown inventory={inventory} />
+                <BucketAnalysis inventory={inventory} buckets={buckets} />
+                <BlindDateCandidates inventory={inventory} />
+              </div>
+            )}
+
+            {/* Settings View */}
+            {view === 'settings' && (
+              <div className="grid lg:grid-cols-2 gap-6">
+                <BucketSettings buckets={buckets} setBuckets={setBuckets} />
+                <ExportSettings inventory={inventory} />
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Analytics Components
+    function InventoryStats({ inventory }) {
+      const available = inventory.filter(b => !b.sold);
+      const sold = inventory.filter(b => b.sold);
+      const totalValue = available.reduce((sum, b) => sum + (b.targetPrice || 0), 0);
+      const totalCost = inventory.reduce((sum, b) => sum + (parseFloat(b.purchaseCost) || 0), 0);
+      const totalRevenue = sold.reduce((sum, b) => sum + (b.soldPrice || 0), 0);
+
+      return (
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold mb-4">Inventory Overview</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">{available.length}</div>
+              <div className="text-sm text-blue-800">Available Books</div>
+              <div className="text-xs text-gray-600">${totalValue.toFixed(2)} total value</div>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">{sold.length}</div>
+              <div className="text-sm text-green-800">Books Sold</div>
+              <div className="text-xs text-gray-600">${totalRevenue.toFixed(2)} revenue</div>
+            </div>
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <div className="text-2xl font-bold text-yellow-600">${totalCost.toFixed(2)}</div>
+              <div className="text-sm text-yellow-800">Total Investment</div>
+            </div>
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <div className="text-2xl font-bold text-purple-600">
+                ${(totalRevenue - totalCost).toFixed(2)}
+              </div>
+              <div className="text-sm text-purple-800">Net Profit</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function TagBreakdown({ inventory }) {
+      const tagCounts = {};
+      inventory.filter(b => !b.sold).forEach(book => {
+        (book.tags || []).forEach(tag => {
+          tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+        });
+      });
+
+      const topTags = Object.entries(tagCounts)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 10);
+
+      return (
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold mb-4">Popular Tags</h3>
+          <div className="space-y-2">
+            {topTags.map(([tag, count]) => (
+              <div key={tag} className="flex justify-between items-center">
+                <span className="text-sm">{tag}</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-24 bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-500 h-2 rounded-full" 
+                      style={{width: `${(count / topTags[0][1]) * 100}%`}}
+                    />
+                  </div>
+                  <span className="text-xs text-gray-600 w-8 text-right">{count}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function BucketAnalysis({ inventory, buckets }) {
+      const available = inventory.filter(b => !b.sold);
+      const bucketCounts = {};
+      
+      buckets.forEach(bucket => bucketCounts[bucket.color] = 0);
+      available.forEach(book => {
+        if (book.bucketColor) bucketCounts[book.bucketColor]++;
+      });
+
+      return (
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold mb-4">Price Bucket Distribution</h3>
+          <div className="space-y-3">
+            {buckets.map(bucket => {
+              const count = bucketCounts[bucket.color] || 0;
+              const value = count * bucket.price;
+              return (
+                <div key={bucket.color} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className={`w-3 h-3 rounded-full bg-${bucket.color}-400`}></span>
+                    <span className="text-sm">{bucket.label}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-medium">{count} books</div>
+                    <div className="text-xs text-gray-600">${value.toFixed(2)} value</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    function BlindDateCandidates({ inventory }) {
+      const candidates = inventory.filter(b => b.blindDateCandidate && !b.sold);
+
+      return (
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold mb-4">Blind Date Books ({candidates.length})</h3>
+          <div className="space-y-3 max-h-64 overflow-y-auto">
+            {candidates.slice(0, 10).map(book => (
+              <div key={book.id} className="border-l-4 border-yellow-400 pl-3 py-2">
+                <div className="font-medium text-sm">{book.title}</div>
+                <div className="text-xs text-gray-600">{book.authors.join(', ')}</div>
+                <div className="text-xs text-yellow-600 italic mt-1">
+                  "{book.blindDateTheme}"
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Settings Components
+    function BucketSettings({ buckets, setBuckets }) {
+      const [editingBuckets, setEditingBuckets] = useState(buckets);
+
+      const updateBucket = (index, field, value) => {
+        setEditingBuckets(prev => prev.map((bucket, i) => 
+          i === index ? { ...bucket, [field]: value } : bucket
+        ));
+      };
+
+      const saveBuckets = () => {
+        setBuckets(editingBuckets);
+      };
+
+      const resetBuckets = () => {
+        setEditingBuckets(DEFAULT_BUCKETS);
+      };
+
+      return (
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold mb-4">Price Buckets</h3>
+          <div className="space-y-3">
+            {editingBuckets.map((bucket, index) => (
+              <div key={index} className="grid grid-cols-3 gap-3 items-center">
+                <input
+                  value={bucket.color}
+                  onChange={(e) => updateBucket(index, 'color', e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg"
+                  placeholder="Color"
+                />
+                <input
+                  value={bucket.label}
+                  onChange={(e) => updateBucket(index, 'label', e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg"
+                  placeholder="Label"
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  value={bucket.price}
+                  onChange={(e) => updateBucket(index, 'price', parseFloat(e.target.value))}
+                  className="px-3 py-2 border border-gray-300 rounded-lg"
+                  placeholder="Price"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={saveBuckets}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Save Changes
+            </button>
+            <button
+              onClick={resetBuckets}
+              className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+            >
+              Reset to Default
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    function ExportSettings({ inventory }) {
+      const exportClaudePrompt = () => {
+        const claudeData = exportForClaude(inventory);
+        const prompt = `Here's my current bookstore inventory data:
+
+${claudeData}
+
+Please help me with:
+1. Suggest themed groupings for my pop-up display tables
+2. Create display cards with catchy descriptions for each group
+3. Recommend which books might work well together
+4. Identify any gaps in my current selection
+
+Focus on creating an engaging customer experience with groupings like "Cozy Winter Reads," "Strong Heroines," "Unexpected Twists," etc.`;
+        
+        saveFile(`claude_prompt_${new Date().toISOString().slice(0,10)}.txt`, prompt);
+      };
+
+      return (
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold mb-4">Export Options</h3>
+          <div className="space-y-3">
+            <button
+              onClick={() => exportInventoryCSV()}
+              className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              Export Full Inventory CSV
+            </button>
+            <button
+              onClick={() => exportClaudeData()}
+              className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+            >
+              Export Summary for Claude
+            </button>
+            <button
+              onClick={exportClaudePrompt}
+              className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            >
+              Generate Claude Consultation Prompt
+            </button>
+          </div>
+          <p className="text-sm text-gray-600 mt-3">
+            The Claude consultation prompt includes your inventory summary and asks for 
+            display grouping suggestions, marketing copy, and curation recommendations.
+          </p>
+        </div>
+      );
+    }
+
+    // Render the app
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
