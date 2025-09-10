@@ -607,32 +607,49 @@ function enhancedTagging(categories = [], description = '', title = '') {
     }
 
     const DEFAULT_BUCKETS = [
-      { color: "green", label: "Quick Reads ($3)", price: 3 },
-      { color: "blue", label: "Standard ($4)", price: 4 },
-      { color: "purple", label: "Premium ($8)", price: 8 },
-      { color: "black", label: "Special ($10)", price: 10 },
-      { color: "gold", label: "Blind Date ($6)", price: 6 },
-    ];
+  { color: "green", label: "Browse & Go ($2)", price: 2 },
+  { color: "blue", label: "Solid Picks ($4)", price: 4 },
+  { color: "purple", label: "Curated Finds ($6)", price: 6 },
+  { color: "brass", label: "Blind Date ($9)", price: 9 },
+  { color: "gray", label: "Spotlight ($12)", price: 12 },
+];
 
     function suggestBucket(book, buckets) {
-      const priceList = (book.listPrice || "").match(/([0-9]+(?:\.[0-9]+)?)/);
-      const msrp = priceList ? parseFloat(priceList[1]) : null;
-      const year = (book.publishedDate || "").slice(0,4);
-      const recent = year && parseInt(year) >= 2020;
-      const rating = book.averageRating || 0;
-      const popularity = book.ratingsCount || 0;
-      const strong = rating >= 4.0 && popularity > 1000;
-      
-      let bucketIndex = 0; // Green $3 (default)
-      
-      if (rating >= 3.8 || popularity > 500) bucketIndex = 1; // Blue $4
-      if (strong || recent || (msrp && msrp >= 25)) bucketIndex = 2; // Purple $8
-      if (strong && recent && (msrp && msrp >= 30)) bucketIndex = 3; // Black $10
-      
-      const safeBucketIndex = Math.min(Math.max(bucketIndex, 0), buckets.length - 1);
-      return buckets[safeBucketIndex] || buckets[0];
-    }
+  // Check if it's a children's book first
+  const text = `${(book.categories || []).join(' ')} ${book.description || ''} ${book.title}`.toLowerCase();
+  if (text.includes('children') || text.includes('juvenile') || text.includes('picture book') || 
+      text.includes('young readers') || text.includes('ages 3') || text.includes('ages 4') || 
+      text.includes('ages 5') || text.includes('ages 6') || text.includes('ages 7') || text.includes('ages 8') ||
+      text.includes('kindergarten') || text.includes('elementary') || text.includes('board book')) {
+    // Return the "Browse & Go" bucket for all children's books
+    return buckets[0] || { color: "green", label: "Browse & Go ($2)", price: 2 };
+  }
 
+  const priceList = (book.listPrice || "").match(/([0-9]+(?:\.[0-9]+)?)/);
+  const msrp = priceList ? parseFloat(priceList[1]) : null;
+  const year = (book.publishedDate || "").slice(0,4);
+  const recent = year && parseInt(year) >= 2020;
+  const rating = book.averageRating || 0;
+  const popularity = book.ratingsCount || 0;
+  const strong = rating >= 4.0 && popularity > 1000;
+  const exceptional = rating >= 4.3 && popularity > 5000;
+  
+  let bucketIndex = 0; // Green $2 (Browse & Go)
+  
+  // Basic quality indicators move to Solid Picks ($4)
+  if (rating >= 3.8 || popularity > 300) bucketIndex = 1;
+  
+  // Good books with appeal move to Curated Finds ($6)
+  if (rating >= 4.0 || popularity > 1000 || recent || (msrp && msrp >= 20)) bucketIndex = 2;
+  
+  // Exceptional books move to Spotlight ($12)
+  if (exceptional && recent && (msrp && msrp >= 25)) bucketIndex = 4;
+  
+  // Note: Blind Date ($9) is handled separately in the addToInventory function
+  
+  const safeBucketIndex = Math.min(Math.max(bucketIndex, 0), buckets.length - 1);
+  return buckets[safeBucketIndex] || buckets[0];
+}
     // Main App Component
     function App() {
       const [query, setQuery] = useState("");
