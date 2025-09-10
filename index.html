@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bookish Pop-up Inventory</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+    video { -webkit-transform: translateZ(0); }
+    .quagga-scanner { position: relative; }
+  </style>
+</head>
+<body class="bg-slate-50">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useEffect, useRef, useState, useCallback } = React;
+
+    const classNames = (...cls) => cls.filter(Boolean).join(" ");
+    const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+    // Enhanced categorization system for pop-up bookstore
+    const GENRE_MAPPING = {
+      // Primary genres
+      'mystery': ['Mystery', 'Cozy Mystery'],
+      'detective': ['Mystery', 'Detective'],
+      'thriller': ['Thriller', 'Psychological Thriller'],
+      'suspense': ['Suspense', 'Thriller'],
+      'crime': ['Crime', 'Mystery'],
+      'police': ['Crime', 'Police Procedural'],
+      'cozy': ['Cozy Mystery', 'Cozy Reads'],
+      
+      // Romance and relationships
+      'romance': ['Romance', 'Contemporary Romance'],
+      'contemporary romance': ['Romance', 'Contemporary Romance'],
+      'historical romance': ['Romance', 'Historical Romance', 'Historical Fiction'],
+      'erotic': ['Spicy Romance', 'Adult'],
+      'spicy': ['Spicy Romance', 'Adult'],
+      'love story': ['Romance', 'Love Story'],
+      
+      // Fantasy and sci-fi
+      'fantasy': ['Fantasy', 'Epic Fantasy'],
+      'urban fantasy': ['Fantasy', 'Urban Fantasy', 'Paranormal'],
+      'paranormal': ['Paranormal', 'Fantasy'],
+      'science fiction': ['Sci-Fi', 'Space Opera'],
+      'sci-fi': ['Sci-Fi'],
+      'dystopian': ['Dystopian', 'Sci-Fi'],
+      'post-apocalyptic': ['Post-Apocalyptic', 'Dystopian'],
+      
+      // Historical and literary
+      'historical': ['Historical Fiction', 'Period Drama'],
+      'literary': ['Literary Fiction', 'Book Club Pick'],
+      'classic': ['Classic Literature', 'Timeless'],
+      'historical fiction': ['Historical Fiction', 'Period Drama'],
+      'period': ['Period Drama', 'Historical Fiction'],
+      
+      // Life and relationships
+      'family': ['Family Drama', 'Multigenerational'],
+      'coming of age': ['Coming of Age', 'Character Study'],
+      'women\'s fiction': ['Women\'s Fiction', 'Book Club Pick'],
+      'friendship': ['Friendship', 'Relationships'],
+      'memoir': ['Memoir', 'Biography', 'Nonfiction'],
+      'biography': ['Biography', 'Nonfiction'],
+      
+      // Adventure and action
+      'adventure': ['Adventure', 'Action'],
+      'action': ['Action', 'Thriller'],
+      'war': ['War Fiction', 'Historical Fiction'],
+      'military': ['Military Fiction', 'War Fiction'],
+      
+      // Mood and atmosphere
+      'dark': ['Dark Fiction', 'Gothic'],
+      'gothic': ['Gothic', 'Atmospheric'],
+      'atmospheric': ['Atmospheric', 'Mood'],
+      'heartwarming': ['Heartwarming', 'Feel-Good'],
+      'uplifting': ['Uplifting', 'Feel-Good'],
+      'emotional': ['Emotional', 'Tearjerker'],
+      
+      // Special categories
+      'young adult': ['YA', 'Coming of Age'],
+      'ya': ['YA'],
+      'teen': ['YA', 'Teen'],
+      'nonfiction': ['Nonfiction'],
+      'self-help': ['Self-Help', 'Personal Development'],
+      'humor': ['Humor', 'Comedy'],
+      'comedy': ['Comedy', 'Humor']
+    };
+
+    const BLIND_DATE_THEMES = [
+      'Hidden gem from lesser-known author',
+      'Unexpected plot twist you won\'t see coming',
+      'Set in an exotic, faraway location',
+      'Strong female protagonist who defies expectations',
+      'Atmospheric read perfect for cozy evenings',
+      'Emotional journey that will stay with you',
+      'Genre-bending story that\'s hard to categorize',
+      'Underrated book that deserves more recognition',
+      'Perfect escape from everyday life',
+      'Thought-provoking with deeper meaning'
+    ];
+
+    function estimateReadingTime(pages) {
+      if (!pages || pages <= 0) return { hours: null, pace: "Unknown" };
+      const words = pages * 275;
+      const hours = Math.round(((words / 225) / 60) * 10) / 10;
+      let pace;
+      if (pages < 250) pace = "Quick Read";
+      else if (pages <= 350) pace = "Standard";
+      else if (pages <= 500) pace = "Immersive";
+      else pace = "Epic Journey";
+      return { hours, pace };
+    }
+
+    function enhancedTagging(categories = [], description = '', title = '') {
+      const text = `${categories.join(' ')} ${description} ${title}`.toLowerCase();
+      const tags = new Set();
+      
+      // Apply genre mapping
+      for (const [keyword, genreTags] of Object.entries(GENRE_MAPPING)) {
+        if (text.includes(keyword)) {
+          genreTags.forEach(tag => tags.add(tag));
+        }
+      }
+      
+      // Add special descriptive tags
+      if (text.includes('award') || text.includes('winner') || text.includes('bestseller')) {
+        tags.add('Award Winner');
+      }
+      if (text.includes('series') || text.includes('book 1') || text.includes('first in')) {
+        tags.add('Series Starter');
+      }
+      if (text.includes('standalone')) {
+        tags.add('Standalone');
+      }
+      
+      return Array.from(tags);
+    }
+
+    function suggestBlindDateTheme(book) {
+      const themes = [];
+      const text = `${book.description || ''} ${(book.categories || []).join(' ')}`.toLowerCase();
+      const rating = book.averageRating || 0;
+      const popularity = book.ratingsCount || 0;
+      
+      if (popularity < 1000) themes.push('Hidden gem from lesser-known author');
+      if (text.includes('twist') || text.includes('surprise')) themes.push('Unexpected plot twist you won\'t see coming');
+      if (text.includes('japan') || text.includes('india') || text.includes('africa') || text.includes('exotic')) {
+        themes.push('Set in an exotic, faraway location');
+      }
+      if (text.includes('woman') || text.includes('female') || text.includes('heroine')) {
+        themes.push('Strong female protagonist who defies expectations');
+      }
+      if (text.includes('atmospheric') || text.includes('cozy') || text.includes('winter')) {
+        themes.push('Atmospheric read perfect for cozy evenings');
+      }
+      if (rating >= 4.2) themes.push('Emotional journey that will stay with you');
+      if (popularity < 500 && rating >= 4.0) themes.push('Underrated book that deserves more recognition');
+      
+      return themes.length > 0 ? themes[0] : BLIND_DATE_THEMES[Math.floor(Math.random() * BLIND_DATE_THEMES.length)];
+    }
+
+    function isGoodBlindDateCandidate(book, purchaseCost) {
+      const cost = parseFloat(purchaseCost) || 0;
+      const rating = book.averageRating || 0;
+      const popularity = book.ratingsCount || 0;
+      const hasDescription = (book.description || '').length > 100;
+      
+      // Good candidates: decent rating, not too popular, interesting description, cheap acquisition
+      return (
+        rating >= 3.5 && 
+        rating <= 4.3 && 
+        popularity > 10 && 
+        popularity < 2000 && 
+        hasDescription && 
+        cost <= 3.0
+      );
+    }
+
+    function csvEscape(v) {
+      if (v === null || v === undefined) return "";
+      const s = String(v);
+      return (s.includes(',') || s.includes('\n') || s.includes('"')) ? '"' + s.replaceAll('"', '""') + '"' : s;
+    }
+
+    function exportForClaude(inventory) {
+      const summary = {
+        totalBooks: inventory.length,
+        availableBooks: inventory.filter(b => !b.sold).length,
+        soldBooks: inventory.filter(b => b.sold).length,
+        blindDateCandidates: inventory.filter(b => b.blindDateCandidate && !b.sold).length,
+        tagCounts: {},
+        bucketCounts: {},
+        averageRating: 0,
+        topAuthors: {},
+        recentAdditions: inventory.slice(0, 10)
+      };
+
+      // Count tags and buckets
+      inventory.forEach(book => {
+        if (!book.sold) {
+          (book.tags || []).forEach(tag => {
+            summary.tagCounts[tag] = (summary.tagCounts[tag] || 0) + 1;
+          });
+          if (book.bucketColor) {
+            summary.bucketCounts[book.bucketColor] = (summary.bucketCounts[book.bucketColor] || 0) + 1;
+          }
+        }
+        
+        // Count authors
+        (book.authors || []).forEach(author => {
+          summary.topAuthors[author] = (summary.topAuthors[author] || 0) + 1;
+        });
+      });
+
+      // Calculate average rating
+      const ratedBooks = inventory.filter(b => b.averageRating && !b.sold);
+      if (ratedBooks.length > 0) {
+        summary.averageRating = ratedBooks.reduce((sum, b) => sum + b.averageRating, 0) / ratedBooks.length;
+      }
+
+      // Sort and limit results
+      summary.tagCounts = Object.fromEntries(
+        Object.entries(summary.tagCounts).sort(([,a], [,b]) => b - a).slice(0, 15)
+      );
+      summary.topAuthors = Object.fromEntries(
+        Object.entries(summary.topAuthors).sort(([,a], [,b]) => b - a).slice(0, 10)
+      );
+
+      return JSON.stringify(summary, null, 2);
+    }
+
+    function saveFile(name, content) {
+      const blob = new Blob([content], { type: "text/plain;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = name; document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    }
+
+    // Enhanced barcode scanner using QuaggaJS as fallback
+    function EnhancedBarcodeScanner({ onDetected }) {
+      const videoRef = useRef(null);
+      const scannerRef = useRef(null);
+      const [supported, setSupported] = useState(false);
+      const [active, setActive] = useState(false);
+      const [error, setError] = useState("");
+      const [useQuagga, setUseQuagga] = useState(false);
+
+      useEffect(() => {
+        setSupported('BarcodeDetector' in window || typeof Quagga !== 'undefined');
+        setUseQuagga(!('BarcodeDetector' in window) && typeof Quagga !== 'undefined');
+      }, []);
+
+      const stopScanning = useCallback(() => {
+        if (useQuagga && typeof Quagga !== 'undefined') {
+          try {
+            Quagga.stop();
+          } catch (e) {
+            console.warn('Error stopping Quagga:', e);
+          }
+        }
+        if (videoRef.current && videoRef.current.srcObject) {
+          videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+          videoRef.current.srcObject = null;
+        }
+      }, [useQuagga]);
+
+      useEffect(() => {
+        if (!active) {
+          stopScanning();
+          return;
+        }
+
+        setError("");
+
+        if (useQuagga && typeof Quagga !== 'undefined') {
+          // Use QuaggaJS fallback
+          Quagga.init({
+            inputStream: {
+              name: "Live",
+              type: "LiveStream",
+              target: scannerRef.current,
+              constraints: {
+                width: 640,
+                height: 480,
+                facingMode: "environment"
+              }
+            },
+            decoder: {
+              readers: ["ean_reader", "ean_8_reader", "code_128_reader"]
+            }
+          }, (err) => {
+            if (err) {
+              setError(err.message || String(err));
+              setActive(false);
+              return;
+            }
+            Quagga.start();
+          });
+
+          Quagga.onDetected((data) => {
+            if (data && data.codeResult && data.codeResult.code) {
+              onDetected(data.codeResult.code);
+              setActive(false);
+            }
+          });
+
+          return () => stopScanning();
+        } else if ('BarcodeDetector' in window) {
+          // Use native BarcodeDetector
+          let stream, rafId, detector;
+          
+          (async () => {
+            try {
+              detector = new window.BarcodeDetector({ 
+                formats: ['ean_13','ean_8','upc_e','upc_a','code_128'] 
+              });
+              stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' }, 
+                audio: false 
+              });
+              
+              if (videoRef.current) { 
+                videoRef.current.srcObject = stream; 
+                await videoRef.current.play(); 
+              }
+
+              const scan = async () => {
+                try {
+                  if (videoRef.current?.readyState === 4) {
+                    const detections = await detector.detect(videoRef.current);
+                    const code = detections?.[0]?.rawValue;
+                    if (code) { 
+                      onDetected(code); 
+                      setActive(false); 
+                      return; 
+                    }
+                  }
+                } catch (e) {
+                  console.warn('Detection error:', e);
+                }
+                rafId = requestAnimationFrame(scan);
+              };
+              scan();
+            } catch (e) { 
+              setError(e.message || String(e)); 
+              setActive(false); 
+            }
+          })();
+
+          return () => {
+            if (rafId) cancelAnimationFrame(rafId);
+            stopScanning();
+          };
+        }
+      }, [active, onDetected, useQuagga, stopScanning]);
+
+      return (
+        <div className="w-full">
+          <div className="flex items-center gap-2 mb-3">
+            <button 
+              onClick={() => setActive(a => !a)} 
+              className={classNames(
+                "px-4 py-2 rounded-lg shadow font-medium",
+                active ? "bg-red-600 text-white" : "bg-green-600 text-white"
+              )}
+            >
+              {active ? "Stop Scanner" : "Start Scanner"}
+            </button>
+            {!supported && (
+              <span className="text-sm text-red-600">
+                Barcode scanning not supported. Please use manual ISBN lookup.
+              </span>
+            )}
+            {useQuagga && (
+              <span className="text-xs text-blue-600">Using fallback scanner</span>
+            )}
+          </div>
+          
+          <div className="rounded-lg overflow-hidden shadow-lg bg-black">
+            {useQuagga ? (
+              <div ref={scannerRef} className="w-full h-64" />
+            ) : (
+              <video ref={videoRef} className="w-full h-64 object-cover" muted playsInline />
+            )}
+          </div>
+          
+          {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+        </div>
+      );
+    }
+
+    // API functions with better error handling
+    async function fetchWithRetry(url, retries = 3) {
+      for (let i = 0; i < retries; i++) {
+        try {
+          const response = await fetch(url);
+          if (response.ok) return response;
+          if (response.status === 429) {
+            // Rate limited, wait and retry
+            await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+            continue;
+          }
+          throw new Error(`HTTP ${response.status}`);
+        } catch (error) {
+          if (i === retries - 1) throw error;
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+    }
+
+    async function fetchByISBN(isbn) {
+      const cleaned = (isbn || "").replace(/[^0-9Xx]/g, "");
+      if (!cleaned) return null;
+      
+      try {
+        const gRes = await fetchWithRetry(`https://www.googleapis.com/books/v1/volumes?q=isbn:${cleaned}`);
+        const gJson = await gRes.json();
+        if (gJson && Array.isArray(gJson.items) && gJson.items.length) {
+          return normalizeGoogleVolume(gJson.items[0]);
+        }
+      } catch (error) {
+        console.warn('Google Books API error:', error);
+      }
+      
+      try {
+        const oRes = await fetchWithRetry(`https://openlibrary.org/isbn/${cleaned}.json`);
+        const data = await oRes.json();
+        return normalizeOpenLibraryISBN(data, cleaned);
+      } catch (error) {
+        console.warn('OpenLibrary API error:', error);
+      }
+      
+      return null;
+    }
+
+    async function fetchByTitle(query) {
+      const q = encodeURIComponent(query || "");
+      if (!q) return [];
+      
+      try {
+        const gRes = await fetchWithRetry(`https://www.googleapis.com/books/v1/volumes?q=intitle:${q}&maxResults=10`);
+        const gJson = await gRes.json();
+        const items = [];
+        if (gJson && Array.isArray(gJson.items)) {
+          for (const vol of gJson.items) {
+            const normalized = normalizeGoogleVolume(vol);
+            if (normalized) items.push(normalized);
+          }
+        }
+        return items;
+      } catch (error) {
+        console.warn('Title search error:', error);
+        return [];
+      }
+    }
+
+    function parseIndustryIdentifiers(arr) {
+      const out = { isbn10: null, isbn13: null };
+      if (!Array.isArray(arr)) return out;
+      for (const id of arr) {
+        if (!id || !id.type) continue;
+        if (id.type.includes("ISBN_13")) out.isbn13 = id.identifier;
+        if (id.type.includes("ISBN_10")) out.isbn10 = id.identifier;
+      }
+      return out;
+    }
+
+    function normalizeGoogleVolume(vol) {
+      if (!vol || !vol.volumeInfo) return null;
+      const v = vol.volumeInfo;
+      const sale = vol.saleInfo || {};
+      const ids = parseIndustryIdentifiers(v.industryIdentifiers);
+      const price = sale?.listPrice?.amount ? `${sale.listPrice.amount} ${sale.listPrice.currencyCode || ""}`.trim() : null;
+      
+      return {
+        source: "GoogleBooks",
+        title: v.title || "",
+        authors: v.authors || [],
+        publisher: v.publisher || "",
+        publishedDate: v.publishedDate || "",
+        pageCount: v.pageCount || null,
+        categories: v.categories || [],
+        averageRating: v.averageRating || null,
+        ratingsCount: v.ratingsCount || null,
+        thumbnail: v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || null,
+        description: v.description || "",
+        isbn10: ids.isbn10,
+        isbn13: ids.isbn13,
+        listPrice: price,
+      };
+    }
+
+    function normalizeOpenLibraryISBN(data, isbn) {
+      if (!data) return null;
+      return {
+        source: "OpenLibrary",
+        title: data.title || "",
+        authors: [],
+        publisher: Array.isArray(data.publishers) ? data.publishers.join(", ") : "",
+        publishedDate: data.publish_date || "",
+        pageCount: data.number_of_pages || null,
+        categories: [],
+        averageRating: null,
+        ratingsCount: null,
+        thumbnail: data.covers?.length ? `https://covers.openlibrary.org/b/id/${data.covers[0]}-M.jpg` : null,
+        description: typeof data.description === 'string' ? data.description : (data.description?.value || ""),
+        isbn10: isbn?.length === 10 ? isbn : null,
+        isbn13: isbn?.length === 13 ? isbn : null,
+        listPrice: null,
+      };
+    }
+
+    function useLocalStorage(key, initial) {
+      const [state, setState] = useState(() => {
+        try { 
+          const raw = localStorage.getItem(key); 
+          return raw ? JSON.parse(raw) : initial; 
+        } catch { 
+          return initial; 
+        }
+      });
+      
+      useEffect(() => { 
+        try { 
+          localStorage.setItem(key, JSON.stringify(state)); 
+        } catch (error) {
+          console.warn('localStorage error:', error);
+        } 
+      }, [key, state]);
+      
+      return [state, setState];
+    }
+
+    const DEFAULT_BUCKETS = [
+      { color: "green", label: "Quick Reads ($3)", price: 3 },
+      { color: "blue", label: "Standard ($4)", price: 4 },
+      { color: "purple", label: "Premium ($8)", price: 8 },
+      { color: "black", label: "Special ($10)", price: 10 },
+      { color: "gold", label: "Blind Date ($6)", price: 6 },
+    ];
+
+    function suggestBucket(book, buckets) {
+      const priceList = (book.listPrice || "").match(/([0-9]+(?:\.[0-9]+)?)/);
+      const msrp = priceList ? parseFloat(priceList[1]) : null;
+      const year = (book.publishedDate || "").slice(0,4);
+      const recent = year && parseInt(year) >= 2020;
+      const rating = book.averageRating || 0;
+      const popularity = book.ratingsCount || 0;
+      const strong = rating >= 4.0 && popularity > 1000;
+      
+      let bucketIndex = 0; // Green $3 (default)
+      
+      if (rating >= 3.8 || popularity > 500) bucketIndex = 1; // Blue $4
+      if (strong || recent || (msrp && msrp >= 25)) bucketIndex = 2; // Purple $8
+      if (strong && recent && (msrp && msrp >= 30)) bucketIndex = 3; // Black $10
+      
+      const safeBucketIndex = Math.min(Math.max(bucketIndex, 0), buckets.length - 1);
+      return buckets[safeBucketIndex] || buckets[0];
+    }
+
+    // Main App Component
+    function App() {
+      const [query, setQuery] = useState("");
+      const [mode, setMode] = useState("isbn");
+      const [loading, setLoading] = useState(false);
+      const [results, setResults] = useState([]);
+      const [current, setCurrent] = useState(null);
+      const [inventory, setInventory] = useLocalStorage("bookish_inventory_v3", []);
+      const [purchaseCost, setPurchaseCost] = useState("");
+      const [condition, setCondition] = useState("Good");
+      const [notes, setNotes] = useState("");
+      const [buckets, setBuckets] = useLocalStorage("bookish_buckets_v3", DEFAULT_BUCKETS);
+      const [view, setView] = useState("scan");
+      const [filter, setFilter] = useState("");
+      const [cart, setCart] = useState([]);
+
+      async function handleLookup(q) {
+        setLoading(true);
+        try {
+          if (mode === "isbn") {
+            const item = await fetchByISBN(q || query);
+            if (item) {
+              setCurrent(item);
+              setResults([item]);
+            } else {
+              setCurrent(null);
+              setResults([]);
+            }
+          } else {
+            const items = await fetchByTitle(q || query);
+            setResults(items);
+            setCurrent(items[0] || null);
+          }
+        } catch (error) {
+          console.error('Search error:', error);
+          setCurrent(null);
+          setResults([]);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      function handleDetected(code) {
+        setMode("isbn");
+        setQuery(code);
+        handleLookup(code);
+      }
+
+      function addToInventory() {
+        if (!current) return;
+        
+        const tags = enhancedTagging(current.categories, current.description, current.title);
+        const bucket = suggestBucket(current, buckets);
+        const blindDateCandidate = isGoodBlindDateCandidate(current, purchaseCost);
+        const blindDateTheme = blindDateCandidate ? suggestBlindDateTheme(current) : null;
+        
+        const entry = {
+          ...current,
+          id: uid(),
+          addedAt: new Date().toISOString(),
+          purchaseCost: purchaseCost || null,
+          condition: condition || null,
+          notes: notes || null,
+          tags,
+          bucketColor: bucket.color,
+          targetPrice: bucket.price,
+          blindDateCandidate,
+          blindDateTheme,
+          sold: false,
+          soldPrice: null
+        };
+        
+        setInventory(prev => [entry, ...prev]);
+        setPurchaseCost("");
+        setCondition("Good");
+        setNotes("");
+        setCurrent(null);
+        setQuery("");
+        setResults([]);
+      }
+
+      function removeFromInventory(id) {
+        setInventory(prev => prev.filter(item => item.id !== id));
+      }
+
+      function toggleSold(id) {
+        setInventory(prev => prev.map(item => 
+          item.id === id 
+            ? { ...item, sold: !item.sold, soldPrice: !item.sold ? item.targetPrice : null }
+            : item
+        ));
+      }
+
+      function exportInventoryCSV() {
+        const headers = [
+          "Title", "Authors", "ISBN-13", "ISBN-10", "Tags", "Bucket Color", "Price", 
+          "Purchase Cost", "Condition", "Rating", "Page Count", "Blind Date", "Theme", 
+          "Sold", "Notes", "Added Date"
+        ];
+        
+        const rows = inventory.map(book => [
+          book.title,
+          (book.authors || []).join("; "),
+          book.isbn13 || "",
+          book.isbn10 || "",
+          (book.tags || []).join("; "),
+          book.bucketColor,
+          book.targetPrice,
+          book.purchaseCost || "",
+          book.condition || "",
+          book.averageRating || "",
+          book.pageCount || "",
+          book.blindDateCandidate ? "Yes" : "No",
+          book.blindDateTheme || "",
+          book.sold ? "Yes" : "No",
+          book.notes || "",
+          new Date(book.addedAt).toLocaleDateString()
+        ].map(csvEscape));
+        
+        const csv = [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
+        saveFile(`bookish_inventory_${new Date().toISOString().slice(0,10)}.csv`, csv);
+      }
+
+      function exportClaudeData() {
+        const claudeData = exportForClaude(inventory);
+        saveFile(`bookish_claude_export_${new Date().toISOString().slice(0,10)}.json`, claudeData);
+      }
+
+      const filteredInventory = inventory.filter(book => {
+        if (!filter) return true;
+        const searchText = filter.toLowerCase();
+        return (
+          book.title.toLowerCase().includes(searchText) ||
+          (book.authors || []).some(author => author.toLowerCase().includes(searchText)) ||
+          (book.tags || []).some(tag => tag.toLowerCase().includes(searchText)) ||
+          (book.isbn13 || "").includes(searchText) ||
+          (book.isbn10 || "").includes(searchText)
+        );
+      });
+
+      const bucketChipClass = (color) => {
+        const baseClass = "px-2 py-1 rounded-full text-xs font-medium border ";
+        switch (color) {
+          case 'green': return baseClass + 'bg-green-100 text-green-800 border-green-300';
+          case 'blue': return baseClass + 'bg-blue-100 text-blue-800 border-blue-300';
+          case 'purple': return baseClass + 'bg-purple-100 text-purple-800 border-purple-300';
+          case 'black': return baseClass + 'bg-gray-800 text-white border-gray-800';
+          case 'gold': return baseClass + 'bg-yellow-100 text-yellow-800 border-yellow-300';
+          default: return baseClass + 'bg-gray-100 text-gray-800 border-gray-300';
+        }
+      };
+
+      return (
+        <div className="min-h-screen bg-slate-50 p-4">
+          <div className="max-w-6xl mx-auto">
+            {/* Header */}
+            <header className="mb-6">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                📚 Pop-up Bookstore Inventory
+              </h1>
+              <p className="text-gray-600 text-sm mb-4">
+                Curated book inventory system for your traveling book
