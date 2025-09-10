@@ -116,30 +116,56 @@
       return { hours, pace };
     }
 
-    function enhancedTagging(categories = [], description = '', title = '') {
-      const text = `${categories.join(' ')} ${description} ${title}`.toLowerCase();
-      const tags = new Set();
-      
-      // Apply genre mapping
-      for (const [keyword, genreTags] of Object.entries(GENRE_MAPPING)) {
-        if (text.includes(keyword)) {
-          genreTags.forEach(tag => tags.add(tag));
-        }
-      }
-      
-      // Add special descriptive tags
-      if (text.includes('award') || text.includes('winner') || text.includes('bestseller')) {
-        tags.add('Award Winner');
-      }
-      if (text.includes('series') || text.includes('book 1') || text.includes('first in')) {
-        tags.add('Series Starter');
-      }
-      if (text.includes('standalone')) {
-        tags.add('Standalone');
-      }
-      
-      return Array.from(tags);
+function enhancedTagging(categories = [], description = '', title = '') {
+  const text = `${categories.join(' ')} ${description} ${title}`.toLowerCase();
+  const tags = new Set();
+  
+  // Enhanced setting analysis
+  if (text.includes('new york') || text.includes('manhattan') || text.includes('brooklyn')) tags.add('Set in NYC');
+  if (text.includes('small town') || text.includes('hometown') || text.includes('rural')) tags.add('Small Town');
+  if (text.includes('victorian') || text.includes('regency') || text.includes('1800s')) tags.add('Historical Setting');
+  if (text.includes('paris') || text.includes('london') || text.includes('italy')) tags.add('International Setting');
+  if (text.includes('college') || text.includes('university') || text.includes('campus')) tags.add('Academic Setting');
+  
+  // Enhanced character analysis
+  if (text.includes('strong woman') || text.includes('fierce heroine') || text.includes('independent woman')) tags.add('Strong Female Lead');
+  if (text.includes('enemies to lovers') || text.includes('hate to love') || text.includes('rivals')) tags.add('Enemies to Lovers');
+  if (text.includes('found family') || text.includes('chosen family')) tags.add('Found Family');
+  if (text.includes('lgbtq') || text.includes('queer') || text.includes('gay') || text.includes('lesbian')) tags.add('LGBTQ+');
+  
+  // Enhanced mood/pace analysis
+  if (text.includes('slow burn') || text.includes('gradual') || text.includes('slowly develops')) tags.add('Slow Burn');
+  if (text.includes('fast-paced') || text.includes('thrilling') || text.includes('page-turner')) tags.add('Fast-Paced');
+  if (text.includes('cozy') || text.includes('comfort') || text.includes('heartwarming')) tags.add('Cozy Read');
+  if (text.includes('dark') || text.includes('gritty') || text.includes('disturbing')) tags.add('Dark Themes');
+  if (text.includes('funny') || text.includes('hilarious') || text.includes('witty')) tags.add('Humor');
+  if (text.includes('emotional') || text.includes('tearjerker') || text.includes('cry')) tags.add('Emotional');
+  
+  // Enhanced plot/structure analysis
+  if (text.includes('twist') || text.includes('surprise') || text.includes('unexpected')) tags.add('Plot Twists');
+  if (text.includes('multiple perspectives') || text.includes('dual timeline') || text.includes('alternating')) tags.add('Multiple POV');
+  if (text.includes('epistolary') || text.includes('letters') || text.includes('diary')) tags.add('Unique Format');
+  
+  // Apply original genre mapping
+  for (const [keyword, genreTags] of Object.entries(GENRE_MAPPING)) {
+    if (text.includes(keyword)) {
+      genreTags.forEach(tag => tags.add(tag));
     }
+  }
+  
+  // Add special descriptive tags
+  if (text.includes('award') || text.includes('winner') || text.includes('bestseller')) {
+    tags.add('Award Winner');
+  }
+  if (text.includes('series') || text.includes('book 1') || text.includes('first in')) {
+    tags.add('Series Starter');
+  }
+  if (text.includes('standalone')) {
+    tags.add('Standalone');
+  }
+  
+  return Array.from(tags);
+}
 
     function suggestBlindDateTheme(book) {
       const themes = [];
@@ -686,7 +712,36 @@
         const csv = [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
         saveFile(`bookish_inventory_${new Date().toISOString().slice(0,10)}.csv`, csv);
       }
-
+      function exportMasterFile() {
+  const headers = [
+    "Title", "Authors", "ISBN-13", "ISBN-10", "Tags", "Bucket Color", "Price", 
+    "Purchase Cost", "Condition", "Rating", "Page Count", "Blind Date", "Theme", 
+    "Sold", "Notes", "Added Date"
+  ];
+  
+  const rows = inventory.map(book => [
+    book.title,
+    (book.authors || []).join("; "),
+    book.isbn13 || "",
+    book.isbn10 || "",
+    (book.tags || []).join("; "),
+    book.bucketColor,
+    book.targetPrice,
+    book.purchaseCost || "",
+    book.condition || "",
+    book.averageRating || "",
+    book.pageCount || "",
+    book.blindDateCandidate ? "Yes" : "No",
+    book.blindDateTheme || "",
+    book.sold ? "Yes" : "No",
+    book.notes || "",
+    new Date(book.addedAt).toLocaleDateString()
+  ].map(csvEscape));
+  
+  const csv = [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
+  saveFile(`bookish_master.csv`, csv);
+}
+      
       function exportClaudeData() {
         const claudeData = exportForClaude(inventory);
         saveFile(`bookish_claude_export_${new Date().toISOString().slice(0,10)}.json`, claudeData);
