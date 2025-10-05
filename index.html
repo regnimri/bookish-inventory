@@ -430,7 +430,7 @@ function enhancedTagging(categories = [], description = '', title = '') {
       }, [active, onDetected, useQuagga, stopScanning]);
 
       return (
-        <div className="w-full">
+        <div className="w-full max-w-full overflow-hidden">
           <div className="flex items-center gap-2 mb-3">
             <button 
               onClick={() => setActive(a => !a)} 
