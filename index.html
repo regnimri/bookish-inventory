@@ -841,8 +841,8 @@ function enhancedTagging(categories = [], description = '', title = '') {
       };
 
       return (
-        <div className="min-h-screen bg-slate-50 p-4 overflow-x-hidden">
-          <div className="max-w-6xl mx-auto w-full px-2">
+        <div className="min-h-screen bg-slate-50 p-2 sm:p-4 overflow-x-hidden">
+          <div className="max-w-6xl mx-auto w-full px-0">
             {/* Header */}
             <header className="mb-6">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -880,7 +880,7 @@ function enhancedTagging(categories = [], description = '', title = '') {
 
             {/* Scan & Add View */}
             {view === 'scan' && (
-              <div className="grid lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-6">
                   {/* Scanner Section */}
                   <section className="bg-white rounded-xl shadow-sm p-4 max-w-full">
@@ -1032,7 +1032,7 @@ function enhancedTagging(categories = [], description = '', title = '') {
                       </div>
 
                       {/* Input Fields */}
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                           <label className="block text-sm font-medium text-cottage-moss mb-1">
                             Purchase Cost
@@ -1105,12 +1105,12 @@ function enhancedTagging(categories = [], description = '', title = '') {
                     
                     <div className="flex gap-2">
                       <input
-                        type="text"
-                        value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
-                        placeholder="Filter by title, author, tag, ISBN..."
-                        className="px-3 py-2 border border-cottage-gray rounded-lg w-64"
-                      />
+  type="text"
+  value={filter}
+  onChange={(e) => setFilter(e.target.value)}
+  placeholder="Filter by title, author, tag, ISBN..."
+  className="px-3 py-2 border border-cottage-gray rounded-lg w-full sm:w-64"
+/>
                       <button
                         onClick={exportMasterFile}
                         className="px-4 py-2 bg-cottage-sage text-white rounded-lg hover-cottage-sage"
@@ -1241,7 +1241,7 @@ function enhancedTagging(categories = [], description = '', title = '') {
 
             {/* Analytics View */}
             {view === 'analytics' && (
-              <div className="grid lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <InventoryStats inventory={inventory} />
                 <TagBreakdown inventory={inventory} />
                 <BucketAnalysis inventory={inventory} buckets={buckets} />
@@ -1251,7 +1251,7 @@ function enhancedTagging(categories = [], description = '', title = '') {
 
             {/* Settings View */}
             {view === 'settings' && (
-              <div className="grid lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <BucketSettings buckets={buckets} setBuckets={setBuckets} />
                 <ExportSettings inventory={inventory} />
               </div>
