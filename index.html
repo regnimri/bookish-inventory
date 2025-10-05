@@ -10,9 +10,18 @@
   <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
  <style>
-  body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
-  video { -webkit-transform: translateZ(0); }
-  .quagga-scanner { position: relative; }
+ body { 
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    overflow-x: hidden;
+  }
+  * {
+    box-sizing: border-box;
+  }
+  video { -webkit-transform: translateZ(0); max-width: 100%; }
+  .quagga-scanner { position: relative; max-width: 100%; }
   
   /* Book Cottage Color Palette */
   :root {
@@ -430,7 +439,7 @@ function enhancedTagging(categories = [], description = '', title = '') {
       }, [active, onDetected, useQuagga, stopScanning]);
 
       return (
-        <div className="w-full max-w-full overflow-hidden">
+        <div className="w-full max-w-full">
           <div className="flex items-center gap-2 mb-3">
             <button 
               onClick={() => setActive(a => !a)} 
@@ -451,7 +460,7 @@ function enhancedTagging(categories = [], description = '', title = '') {
             )}
           </div>
           
-          <div className="rounded-lg overflow-hidden shadow-lg bg-black max-w-full">
+          <div className="rounded-lg shadow-lg bg-black max-w-full">
   {useQuagga ? (
     <div ref={scannerRef} className="w-full h-64 max-w-full" />
   ) : (
@@ -874,13 +883,13 @@ function enhancedTagging(categories = [], description = '', title = '') {
               <div className="grid lg:grid-cols-2 gap-6">
                 <div className="space-y-6">
                   {/* Scanner Section */}
-                  <section className="bg-white rounded-xl shadow-sm p-4 max-w-full overflow-hidden">
+                  <section className="bg-white rounded-xl shadow-sm p-4 max-w-full">
                     <h2 className="text-xl font-semibold mb-4 text-cottage-moss">Book Scanner</h2>
                     <EnhancedBarcodeScanner onDetected={handleDetected} />
                   </section>
 
                   {/* Manual Search */}
-                  <section className="bg-white rounded-xl shadow-sm p-4 max-w-full overflow-hidden">
+                  <section className="bg-white rounded-xl shadow-sm p-4 max-w-full">
                     <h2 className="text-xl font-semibold mb-4 text-cottage-moss">Manual Search</h2>
                     <div className="space-y-3">
                       <div className="flex gap-2">
@@ -934,7 +943,7 @@ function enhancedTagging(categories = [], description = '', title = '') {
                 </div>
 
                 {/* Book Details & Add */}
-                <div className="bg-white rounded-xl shadow-sm p-4 max-w-full overflow-hidden">
+                <div className="bg-white rounded-xl shadow-sm p-4">
                   <h2 className="text-xl font-semibold mb-4 text-cottage-moss">Book Details</h2>
                   
                   {!current && (
@@ -946,7 +955,7 @@ function enhancedTagging(categories = [], description = '', title = '') {
                   
                   {current && (
                     <div className="space-y-4">
-                      <div className="flex gap-4 max-w-full overflow-hidden">
+                      <div className="flex gap-4">
                         {current.thumbnail ? (
                           <img 
                             src={current.thumbnail} 
@@ -1085,7 +1094,7 @@ function enhancedTagging(categories = [], description = '', title = '') {
             {view === 'inventory' && (
               <div className="space-y-6">
                 {/* Inventory Header */}
-                <div className="bg-white rounded-xl shadow-sm p-4 max-w-full overflow-hidden">
+                <div className="bg-white rounded-xl shadow-sm p-4">
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                       <h2 className="text-xl font-semibold text-cottage-moss">Your Inventory</h2>
@@ -1125,7 +1134,7 @@ function enhancedTagging(categories = [], description = '', title = '') {
                 </div>
 
                 {/* Inventory Table */}
-                <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div className="bg-white rounded-xl shadow-sm">
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead className="bg-cottage-parchment">
@@ -1261,7 +1270,7 @@ function enhancedTagging(categories = [], description = '', title = '') {
       const totalRevenue = sold.reduce((sum, b) => sum + (b.soldPrice || 0), 0);
 
       return (
-        <div className="bg-white rounded-xl shadow-sm p-4 max-w-full overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm p-4">
           <h3 className="text-lg font-semibold mb-4 text-cottage-moss">Inventory Overview</h3>
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-cottage-lavender p-4 rounded-lg">
@@ -1302,7 +1311,7 @@ function enhancedTagging(categories = [], description = '', title = '') {
         .slice(0, 10);
 
       return (
-        <div className="bg-white rounded-xl shadow-sm p-4 max-w-full overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm p-4">
           <h3 className="text-lg font-semibold mb-4 text-cottage-moss">Popular Tags</h3>
           <div className="space-y-2">
             {topTags.map(([tag, count]) => (
@@ -1334,7 +1343,7 @@ function enhancedTagging(categories = [], description = '', title = '') {
       });
 
       return (
-        <div className="bg-white rounded-xl shadow-sm p-4 max-w-full overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm p-4">
           <h3 className="text-lg font-semibold mb-4 text-cottage-moss">Price Bucket Distribution</h3>
           <div className="space-y-3">
             {buckets.map(bucket => {
@@ -1362,7 +1371,7 @@ function enhancedTagging(categories = [], description = '', title = '') {
       const candidates = inventory.filter(b => b.blindDateCandidate && !b.sold);
 
       return (
-        <div className="bg-white rounded-xl shadow-sm p-4 max-w-full overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm p-4">
           <h3 className="text-lg font-semibold mb-4 text-cottage-moss">Blind Date Books ({candidates.length})</h3>
           <div className="space-y-3 max-h-64 overflow-y-auto">
             {candidates.slice(0, 10).map(book => (
@@ -1398,7 +1407,7 @@ function enhancedTagging(categories = [], description = '', title = '') {
       };
 
       return (
-        <div className="bg-white rounded-xl shadow-sm p-4 max-w-full overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm p-4">
           <h3 className="text-lg font-semibold mb-4 text-cottage-moss">Price Buckets</h3>
           <div className="space-y-3">
             {editingBuckets.map((bucket, index) => (
@@ -1463,7 +1472,7 @@ Focus on creating an engaging customer experience with groupings like "Cozy Wint
       };
 
       return (
-        <div className="bg-white rounded-xl shadow-sm p-4 max-w-full overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm p-4">
           <h3 className="text-lg font-semibold mb-4 text-cottage-moss">Export Options</h3>
           <div className="space-y-3">
             <button
