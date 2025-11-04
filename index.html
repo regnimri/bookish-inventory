@@ -472,254 +472,199 @@ function enhancedTagging(categories = [], description = '', title = '') {
         </div>
       );
     }
-// SaleTally Component - Add this after your EnhancedBarcodeScanner component
-function SaleTally({ buckets, onSaleComplete }) {
-  // State to track current sale in progress (how many books of each color)
-  const [currentSale, setCurrentSale] = useState({});
+
+// Simplified selling interface focused purely on transactions
+function CleanSellInterface({ buckets, onTransactionComplete }) {
+  // Only track the current transaction in progress
+  const [counts, setCounts] = useState({});
   
-  // State to track all completed sales for the day
-  const [salesHistory, setSalesHistory] = useState([]);
-  
-  // Initialize currentSale with all bucket colors set to 0 count
-  // This ensures we have a count for every color bucket, even if it's zero
+  // Initialize all color counts to zero
   useEffect(() => {
-    const initialSale = {};
+    const initialCounts = {};
     buckets.forEach(bucket => {
-      initialSale[bucket.color] = 0;
+      initialCounts[bucket.color] = 0;
     });
-    setCurrentSale(initialSale);
+    setCounts(initialCounts);
   }, [buckets]);
 
-  // Calculate total dollar amount for current sale
-  // This multiplies quantity × price for each color and sums them up
-  const saleTotal = buckets.reduce((total, bucket) => {
-    const count = currentSale[bucket.color] || 0;
+  // Calculate totals for current transaction only
+  const totalDue = buckets.reduce((total, bucket) => {
+    const count = counts[bucket.color] || 0;
     return total + (count * bucket.price);
   }, 0);
 
-  // Calculate total number of books in current sale
-  const totalBooks = Object.values(currentSale).reduce((sum, count) => sum + count, 0);
+  const totalBooks = Object.values(counts).reduce((sum, count) => sum + count, 0);
 
-  // Add one book of a specific color to the current sale
-  function incrementBook(color) {
-    setCurrentSale(prev => ({
+  // Basic counting functions - same as before
+  function incrementCount(color) {
+    setCounts(prev => ({
       ...prev,
       [color]: (prev[color] || 0) + 1
     }));
   }
 
-  // Remove one book of a specific color from current sale (minimum 0)
-  function decrementBook(color) {
-    setCurrentSale(prev => ({
+  function decrementCount(color) {
+    setCounts(prev => ({
       ...prev,
       [color]: Math.max((prev[color] || 0) - 1, 0)
     }));
   }
 
-  // Complete the current sale and add it to history
-  function completeSale() {
-    if (totalBooks === 0) return; // Don't process empty sales
+  // Clear the current transaction (customer changes mind)
+  function cancelOrder() {
+    const resetCounts = {};
+    buckets.forEach(bucket => {
+      resetCounts[bucket.color] = 0;
+    });
+    setCounts(resetCounts);
+  }
+
+  // Complete transaction with specific payment method
+  function completeSale(paymentMethod) {
+    if (totalBooks === 0) return;
     
-    // Create a sale record with timestamp and details
-    const sale = {
-      id: uid(), // Use your existing unique ID function
+    // Create comprehensive transaction record
+    const transaction = {
+      id: uid(),
       timestamp: new Date().toISOString(),
-      books: { ...currentSale }, // Copy current sale details
-      total: saleTotal,
-      totalBooks
+      books: { ...counts },
+      total: totalDue,
+      totalBooks,
+      paymentMethod, // This is the key addition - tracking how they paid
+      status: 'completed'
     };
     
-    // Add sale to history (newest sales first)
-    setSalesHistory(prev => [sale, ...prev]);
-    
-    // Reset current sale for next customer
-    const resetSale = {};
-    buckets.forEach(bucket => {
-      resetSale[bucket.color] = 0;
-    });
-    setCurrentSale(resetSale);
-    
-    // Notify parent component of completed sale
-    if (onSaleComplete) {
-      onSaleComplete(sale);
+    // Send transaction data to parent component (which will store it for analytics)
+    if (onTransactionComplete) {
+      onTransactionComplete(transaction);
     }
+    
+    // Reset interface for next customer
+    cancelOrder();
   }
 
-  // Clear current sale if customer changes their mind
-  function clearCurrentSale() {
-    const resetSale = {};
-    buckets.forEach(bucket => {
-      resetSale[bucket.color] = 0;
-    });
-    setCurrentSale(resetSale);
-  }
-
-  // Helper function to get proper styling for each bucket color
-  // This matches your existing bucket styling system
-  const bucketChipClass = (color) => {
-    const baseClass = "px-2 py-1 rounded-full text-xs font-medium border ";
+  // Color styling function - same as before
+  function getColorClass(color) {
     switch (color) {
-      case 'green': return baseClass + 'bg-green-100 text-green-800 border-green-300';
-      case 'blue': return baseClass + 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'purple': return baseClass + 'bg-purple-100 text-purple-800 border-purple-300';
-      case 'black': return baseClass + 'bg-gray-800 text-white border-gray-800';
-      case 'gold': return baseClass + 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      default: return baseClass + 'bg-gray-100 text-gray-800 border-gray-300';
+      case 'green': return 'bg-green-300 border-green-400 text-green-900';
+      case 'blue': return 'bg-blue-300 border-blue-400 text-blue-900';
+      case 'purple': return 'bg-purple-300 border-purple-400 text-purple-900';
+      case 'black': return 'bg-gray-800 border-gray-900 text-white';
+      case 'gold': return 'bg-yellow-300 border-yellow-400 text-yellow-900';
+      default: return 'bg-gray-300 border-gray-400 text-gray-900';
     }
-  };
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Current Sale Interface - The main tally buttons */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">💰 Quick Sale Tally</h2>
-        
-        {/* Grid of tally buttons - one for each bucket color */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          {buckets.map(bucket => (
-            <div key={bucket.color} className="border rounded-lg p-4 bg-gray-50">
-              {/* Bucket info and current count */}
-              <div className="flex items-center justify-between mb-3">
-                <span className={bucketChipClass(bucket.color)}>
-                  {bucket.label}
-                </span>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-gray-900">
-                    {currentSale[bucket.color] || 0}
-                  </div>
-                  <div className="text-xs text-gray-500">books</div>
-                </div>
-              </div>
-              
-              {/* Plus and minus buttons */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => decrementBook(bucket.color)}
-                  className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 py-3 px-3 rounded font-bold text-lg transition-colors"
-                  disabled={(currentSale[bucket.color] || 0) === 0}
-                >
-                  −
-                </button>
-                <button
-                  onClick={() => incrementBook(bucket.color)}
-                  className="flex-1 bg-green-100 hover:bg-green-200 text-green-700 py-3 px-3 rounded font-bold text-lg transition-colors"
-                >
-                  +
-                </button>
-              </div>
-              
-              {/* Show subtotal for this color */}
-              {(currentSale[bucket.color] || 0) > 0 && (
-                <div className="mt-2 text-center text-sm text-gray-600">
-                  ${((currentSale[bucket.color] || 0) * bucket.price).toFixed(2)}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Sale Summary and Action Buttons */}
-        <div className="border-t pt-4">
-          <div className="flex justify-between items-center mb-4">
-            <div className="text-left">
-              <div className="text-lg font-medium">Total Books: {totalBooks}</div>
-              <div className="text-sm text-gray-600">
-                {totalBooks === 1 ? 'book' : 'books'} selected
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold text-green-600">
-                ${saleTotal.toFixed(2)}
-              </div>
-              <div className="text-sm text-gray-600">total amount</div>
-            </div>
-          </div>
-          
-          {/* Action buttons */}
-          <div className="flex gap-3">
+    <div className="max-w-2xl mx-auto p-4 space-y-6">
+      <h2 className="text-2xl font-semibold text-center mb-6">Quick Sale Tally</h2>
+      
+      {/* The beautiful color grid interface - exactly like your mockup */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        {buckets.slice(0, 6).map(bucket => (
+          <div key={bucket.color} className="relative">
             <button
-              onClick={completeSale}
-              disabled={totalBooks === 0}
-              className={classNames(
-                "flex-1 py-4 px-6 rounded-lg font-medium text-lg transition-colors",
-                totalBooks > 0
-                  ? "bg-green-600 hover:bg-green-700 text-white shadow-lg"
-                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
-              )}
+              onClick={() => incrementCount(bucket.color)}
+              className={`
+                w-full aspect-square border-2 rounded-lg relative
+                ${getColorClass(bucket.color)}
+                hover:opacity-90 active:opacity-80 transition-opacity
+                shadow-lg hover:shadow-xl
+              `}
             >
-              Complete Sale 💳
-            </button>
-            <button
-              onClick={clearCurrentSale}
-              disabled={totalBooks === 0}
-              className="px-6 py-4 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Clear
+              {/* Price display */}
+              <span className="absolute top-3 left-3 text-lg font-bold">
+                ${bucket.price}
+              </span>
+              
+              {/* Large count number */}
+              <span className="text-6xl font-bold">
+                {counts[bucket.color] || 0}
+              </span>
+              
+              {/* Minus button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  decrementCount(bucket.color);
+                }}
+                className="absolute bottom-3 left-1/2 transform -translate-x-1/2 
+                          text-2xl font-bold opacity-70 hover:opacity-100
+                          w-8 h-8 flex items-center justify-center"
+                disabled={!counts[bucket.color]}
+              >
+                −
+              </button>
             </button>
           </div>
-        </div>
+        ))}
       </div>
 
-      {/* Sales History - Shows completed sales for the day */}
-      {salesHistory.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold mb-4">📋 Today's Sales History</h3>
+      {/* Total Due section with payment options */}
+      <div className="bg-white border-2 border-gray-300 rounded-lg p-6">
+        <div className="text-center">
+          <div className="text-lg text-gray-600 mb-2">Total Due</div>
+          <div className="text-5xl font-bold text-black mb-4">
+            ${totalDue.toFixed(2)}
+          </div>
           
-          {/* Recent sales list */}
-          <div className="space-y-3 mb-4">
-            {salesHistory.slice(0, 10).map(sale => (
-              <div key={sale.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <div className="flex-1">
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-gray-600">
-                      {new Date(sale.timestamp).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </span>
-                    <span className="text-sm">
-                      {sale.totalBooks} {sale.totalBooks === 1 ? 'book' : 'books'}
-                    </span>
-                  </div>
-                  {/* Show breakdown of books by color */}
-                  <div className="flex gap-2 mt-1">
-                    {Object.entries(sale.books).map(([color, count]) => {
-                      if (count === 0) return null;
-                      const bucket = buckets.find(b => b.color === color);
-                      return (
-                        <span key={color} className={bucketChipClass(color)}>
-                          {count}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-                <span className="font-semibold text-green-600 text-lg">
-                  ${sale.total.toFixed(2)}
-                </span>
+          {/* Color summary row */}
+          <div className="flex justify-center gap-2 mb-6">
+            {buckets.map(bucket => (
+              <div 
+                key={bucket.color} 
+                className={`
+                  w-10 h-10 border-2 rounded flex items-center justify-center font-bold
+                  ${getColorClass(bucket.color)}
+                `}
+              >
+                {counts[bucket.color] || 0}
               </div>
             ))}
           </div>
           
-          {/* Daily totals summary */}
-          <div className="border-t pt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">
-                  {salesHistory.reduce((sum, sale) => sum + sale.totalBooks, 0)}
+          {/* Payment and action buttons - this is your key insight */}
+          <div className="space-y-3">
+            {totalBooks > 0 ? (
+              <>
+                {/* Payment method buttons */}
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => completeSale('cash')}
+                    className="bg-green-600 hover:bg-green-700 text-white 
+                              py-4 px-6 rounded-lg text-lg font-semibold
+                              transition-colors shadow-lg"
+                  >
+                    💵 Paid - Cash
+                  </button>
+                  
+                  <button
+                    onClick={() => completeSale('digital')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white 
+                              py-4 px-6 rounded-lg text-lg font-semibold
+                              transition-colors shadow-lg"
+                  >
+                    📱 Paid - Venmo/PayPal
+                  </button>
                 </div>
-                <div className="text-sm text-gray-600">Books Sold Today</div>
+                
+                {/* Cancel order button */}
+                <button
+                  onClick={cancelOrder}
+                  className="w-full bg-red-100 hover:bg-red-200 text-red-700 
+                            py-3 px-6 rounded-lg font-medium transition-colors"
+                >
+                  Cancel Order
+                </button>
+              </>
+            ) : (
+              <div className="text-gray-500 py-4">
+                Select books to begin transaction
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">
-                  ${salesHistory.reduce((sum, sale) => sum + sale.total, 0).toFixed(2)}
-                </div>
-                <div className="text-sm text-gray-600">Total Revenue</div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -923,7 +868,7 @@ function SaleTally({ buckets, onSaleComplete }) {
       const [buckets, setBuckets] = useLocalStorage("bookish_buckets_v3", DEFAULT_BUCKETS);
       const [view, setView] = useState("scan");
       const [filter, setFilter] = useState("");
-      const [cart, setCart] = useState([]);
+      const [transactions, setTransactions] = useLocalStorage("bookish_transactions_v1", []);
 
       async function handleLookup(q) {
         setLoading(true);
@@ -1490,20 +1435,26 @@ function SaleTally({ buckets, onSaleComplete }) {
             )}
             {/* Checkout View */}
 {view === 'checkout' && (
-  <div className="space-y-6">
-    {/* Main tally interface for quick sales */}
-    <SaleTally 
-      buckets={buckets} 
-      onSaleComplete={(sale) => {
-        // You can add additional logic here when sales complete
-        // For example, you might want to show a success message,
-        // update analytics, or trigger other actions
-        console.log('Sale completed:', sale);
-        
-        // Optional: Show a brief success message
-        // You could add a toast notification here if you want
-      }} 
+  <div className="min-h-screen bg-gray-50">
+    <CompleteSellInterface 
+      buckets={buckets}
+      inventory={inventory}
+      onTransactionComplete={(transaction) => {
+        setTransactions(prev => [transaction, ...prev]);
+        console.log('Transaction completed:', transaction);
+      }}
+      onInventoryUpdate={(soldBookIds) => {
+        // Mark the sold books in inventory
+        setInventory(prev => prev.map(book => 
+          soldBookIds.includes(book.id) 
+            ? { ...book, sold: true, soldPrice: book.targetPrice }
+            : book
+        ));
+        console.log('Inventory updated, books marked as sold:', soldBookIds);
+      }}
     />
+  </div>
+)}
     
     {/* Optional: Manual book checkout section for special cases */}
     <div className="bg-white rounded-lg shadow p-6">
