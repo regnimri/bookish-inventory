@@ -472,7 +472,257 @@ function enhancedTagging(categories = [], description = '', title = '') {
         </div>
       );
     }
+// SaleTally Component - Add this after your EnhancedBarcodeScanner component
+function SaleTally({ buckets, onSaleComplete }) {
+  // State to track current sale in progress (how many books of each color)
+  const [currentSale, setCurrentSale] = useState({});
+  
+  // State to track all completed sales for the day
+  const [salesHistory, setSalesHistory] = useState([]);
+  
+  // Initialize currentSale with all bucket colors set to 0 count
+  // This ensures we have a count for every color bucket, even if it's zero
+  useEffect(() => {
+    const initialSale = {};
+    buckets.forEach(bucket => {
+      initialSale[bucket.color] = 0;
+    });
+    setCurrentSale(initialSale);
+  }, [buckets]);
 
+  // Calculate total dollar amount for current sale
+  // This multiplies quantity × price for each color and sums them up
+  const saleTotal = buckets.reduce((total, bucket) => {
+    const count = currentSale[bucket.color] || 0;
+    return total + (count * bucket.price);
+  }, 0);
+
+  // Calculate total number of books in current sale
+  const totalBooks = Object.values(currentSale).reduce((sum, count) => sum + count, 0);
+
+  // Add one book of a specific color to the current sale
+  function incrementBook(color) {
+    setCurrentSale(prev => ({
+      ...prev,
+      [color]: (prev[color] || 0) + 1
+    }));
+  }
+
+  // Remove one book of a specific color from current sale (minimum 0)
+  function decrementBook(color) {
+    setCurrentSale(prev => ({
+      ...prev,
+      [color]: Math.max((prev[color] || 0) - 1, 0)
+    }));
+  }
+
+  // Complete the current sale and add it to history
+  function completeSale() {
+    if (totalBooks === 0) return; // Don't process empty sales
+    
+    // Create a sale record with timestamp and details
+    const sale = {
+      id: uid(), // Use your existing unique ID function
+      timestamp: new Date().toISOString(),
+      books: { ...currentSale }, // Copy current sale details
+      total: saleTotal,
+      totalBooks
+    };
+    
+    // Add sale to history (newest sales first)
+    setSalesHistory(prev => [sale, ...prev]);
+    
+    // Reset current sale for next customer
+    const resetSale = {};
+    buckets.forEach(bucket => {
+      resetSale[bucket.color] = 0;
+    });
+    setCurrentSale(resetSale);
+    
+    // Notify parent component of completed sale
+    if (onSaleComplete) {
+      onSaleComplete(sale);
+    }
+  }
+
+  // Clear current sale if customer changes their mind
+  function clearCurrentSale() {
+    const resetSale = {};
+    buckets.forEach(bucket => {
+      resetSale[bucket.color] = 0;
+    });
+    setCurrentSale(resetSale);
+  }
+
+  // Helper function to get proper styling for each bucket color
+  // This matches your existing bucket styling system
+  const bucketChipClass = (color) => {
+    const baseClass = "px-2 py-1 rounded-full text-xs font-medium border ";
+    switch (color) {
+      case 'green': return baseClass + 'bg-green-100 text-green-800 border-green-300';
+      case 'blue': return baseClass + 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'purple': return baseClass + 'bg-purple-100 text-purple-800 border-purple-300';
+      case 'black': return baseClass + 'bg-gray-800 text-white border-gray-800';
+      case 'gold': return baseClass + 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      default: return baseClass + 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Current Sale Interface - The main tally buttons */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-semibold mb-4">💰 Quick Sale Tally</h2>
+        
+        {/* Grid of tally buttons - one for each bucket color */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          {buckets.map(bucket => (
+            <div key={bucket.color} className="border rounded-lg p-4 bg-gray-50">
+              {/* Bucket info and current count */}
+              <div className="flex items-center justify-between mb-3">
+                <span className={bucketChipClass(bucket.color)}>
+                  {bucket.label}
+                </span>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-gray-900">
+                    {currentSale[bucket.color] || 0}
+                  </div>
+                  <div className="text-xs text-gray-500">books</div>
+                </div>
+              </div>
+              
+              {/* Plus and minus buttons */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => decrementBook(bucket.color)}
+                  className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 py-3 px-3 rounded font-bold text-lg transition-colors"
+                  disabled={(currentSale[bucket.color] || 0) === 0}
+                >
+                  −
+                </button>
+                <button
+                  onClick={() => incrementBook(bucket.color)}
+                  className="flex-1 bg-green-100 hover:bg-green-200 text-green-700 py-3 px-3 rounded font-bold text-lg transition-colors"
+                >
+                  +
+                </button>
+              </div>
+              
+              {/* Show subtotal for this color */}
+              {(currentSale[bucket.color] || 0) > 0 && (
+                <div className="mt-2 text-center text-sm text-gray-600">
+                  ${((currentSale[bucket.color] || 0) * bucket.price).toFixed(2)}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Sale Summary and Action Buttons */}
+        <div className="border-t pt-4">
+          <div className="flex justify-between items-center mb-4">
+            <div className="text-left">
+              <div className="text-lg font-medium">Total Books: {totalBooks}</div>
+              <div className="text-sm text-gray-600">
+                {totalBooks === 1 ? 'book' : 'books'} selected
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-3xl font-bold text-green-600">
+                ${saleTotal.toFixed(2)}
+              </div>
+              <div className="text-sm text-gray-600">total amount</div>
+            </div>
+          </div>
+          
+          {/* Action buttons */}
+          <div className="flex gap-3">
+            <button
+              onClick={completeSale}
+              disabled={totalBooks === 0}
+              className={classNames(
+                "flex-1 py-4 px-6 rounded-lg font-medium text-lg transition-colors",
+                totalBooks > 0
+                  ? "bg-green-600 hover:bg-green-700 text-white shadow-lg"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              )}
+            >
+              Complete Sale 💳
+            </button>
+            <button
+              onClick={clearCurrentSale}
+              disabled={totalBooks === 0}
+              className="px-6 py-4 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Sales History - Shows completed sales for the day */}
+      {salesHistory.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4">📋 Today's Sales History</h3>
+          
+          {/* Recent sales list */}
+          <div className="space-y-3 mb-4">
+            {salesHistory.slice(0, 10).map(sale => (
+              <div key={sale.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                <div className="flex-1">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-600">
+                      {new Date(sale.timestamp).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                    <span className="text-sm">
+                      {sale.totalBooks} {sale.totalBooks === 1 ? 'book' : 'books'}
+                    </span>
+                  </div>
+                  {/* Show breakdown of books by color */}
+                  <div className="flex gap-2 mt-1">
+                    {Object.entries(sale.books).map(([color, count]) => {
+                      if (count === 0) return null;
+                      const bucket = buckets.find(b => b.color === color);
+                      return (
+                        <span key={color} className={bucketChipClass(color)}>
+                          {count}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+                <span className="font-semibold text-green-600 text-lg">
+                  ${sale.total.toFixed(2)}
+                </span>
+              </div>
+            ))}
+          </div>
+          
+          {/* Daily totals summary */}
+          <div className="border-t pt-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">
+                  {salesHistory.reduce((sum, sale) => sum + sale.totalBooks, 0)}
+                </div>
+                <div className="text-sm text-gray-600">Books Sold Today</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  ${salesHistory.reduce((sum, sale) => sum + sale.total, 0).toFixed(2)}
+                </div>
+                <div className="text-sm text-gray-600">Total Revenue</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
     // API functions with better error handling
     async function fetchWithRetry(url, retries = 3) {
       for (let i = 0; i < retries; i++) {
@@ -1238,7 +1488,102 @@ function enhancedTagging(categories = [], description = '', title = '') {
                 </div>
               </div>
             )}
-
+            {/* Checkout View */}
+{view === 'checkout' && (
+  <div className="space-y-6">
+    {/* Main tally interface for quick sales */}
+    <SaleTally 
+      buckets={buckets} 
+      onSaleComplete={(sale) => {
+        // You can add additional logic here when sales complete
+        // For example, you might want to show a success message,
+        // update analytics, or trigger other actions
+        console.log('Sale completed:', sale);
+        
+        // Optional: Show a brief success message
+        // You could add a toast notification here if you want
+      }} 
+    />
+    
+    {/* Optional: Manual book checkout section for special cases */}
+    <div className="bg-white rounded-lg shadow p-6">
+      <h3 className="text-lg font-semibold mb-4">🔍 Manual Book Checkout</h3>
+      <p className="text-sm text-gray-600 mb-4">
+        Use this section for individual book sales, returns, or end-of-day inventory reconciliation.
+      </p>
+      
+      {/* Search/filter for finding specific books */}
+      <input
+        type="text"
+        placeholder="Search books by title, author, or ISBN..."
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        className="w-full p-3 border border-gray-300 rounded-lg mb-4"
+      />
+      
+      {/* Grid of available books that can be individually marked as sold */}
+      {filteredInventory.filter(book => !book.sold).length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {filteredInventory.filter(book => !book.sold).slice(0, 12).map(book => (
+            <div key={book.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+              {/* Book thumbnail if available */}
+              {book.thumbnail && (
+                <img 
+                  src={book.thumbnail} 
+                  alt={book.title}
+                  className="w-16 h-20 object-cover mx-auto mb-3 rounded"
+                />
+              )}
+              
+              {/* Book details */}
+              <div className="flex justify-between items-start mb-2">
+                <h4 className="font-medium text-sm line-clamp-2 flex-1">{book.title}</h4>
+                <span className={bucketChipClass(book.bucketColor)}>
+                  ${book.targetPrice}
+                </span>
+              </div>
+              
+              <p className="text-xs text-gray-600 mb-3">
+                {(book.authors || []).join(", ")}
+              </p>
+              
+              {/* Tags */}
+              {book.tags && book.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {book.tags.slice(0, 2).map(tag => (
+                    <span key={tag} className="px-2 py-1 bg-gray-100 text-xs rounded">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+              
+              {/* Mark as sold button */}
+              <button
+                onClick={() => toggleSold(book.id)}
+                className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded text-sm font-medium transition-colors"
+              >
+                Mark as Sold
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8 text-gray-500">
+          {filter ? 'No books found matching your search.' : 'No books available for sale.'}
+        </div>
+      )}
+      
+      {/* Show count of filtered results if there are more than 12 */}
+      {filteredInventory.filter(book => !book.sold).length > 12 && (
+        <div className="text-center mt-4 text-sm text-gray-600">
+          Showing 12 of {filteredInventory.filter(book => !book.sold).length} available books.
+          Use search to find specific titles.
+        </div>
+      )}
+    </div>
+  </div>
+)}
             {/* Analytics View */}
             {view === 'analytics' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
