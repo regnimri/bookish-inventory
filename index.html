@@ -763,19 +763,19 @@ function QuickSellInterface({ buckets, onTransactionComplete }) {
                 {counts[bucket.color] || 0}
               </span>
               
-              {/* Minus button at bottom */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  decrementCount(bucket.color);
-                }}
-                className="absolute bottom-3 left-1/2 transform -translate-x-1/2 
-                          text-2xl font-bold opacity-70 hover:opacity-100
-                          w-8 h-8 flex items-center justify-center"
-                disabled={!counts[bucket.color]}
-              >
-                −
-              </button>
+              {/* Minus button at bottom-left */}
+<button
+  onClick={(e) => {
+    e.stopPropagation();
+    decrementCount(bucket.color);
+  }}
+  className="absolute bottom-3 left-3 
+            text-2xl font-bold opacity-70 hover:opacity-100
+            w-8 h-8 flex items-center justify-center"
+  disabled={!counts[bucket.color]}
+>
+  −
+</button>
             </button>
           </div>
         ))}
