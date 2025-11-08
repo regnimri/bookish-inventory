@@ -242,7 +242,7 @@ function enhancedTagging(categories = [], description = '', title = '') {
       return themes.length > 0 ? themes[0] : BLIND_DATE_THEMES[Math.floor(Math.random() * BLIND_DATE_THEMES.length)];
     }
 
-function isGoodBlindDateCandidate(book, purchaseCost) {
+    function isGoodBlindDateCandidate(book, purchaseCost) {
       const cost = parseFloat(purchaseCost) || 0;
       const rating = book.averageRating || 0;
       const popularity = book.ratingsCount || 0;
@@ -644,7 +644,7 @@ function isGoodBlindDateCandidate(book, purchaseCost) {
   const strong = rating >= 4.0 && popularity > 1000;
   const exceptional = rating >= 4.3 && popularity > 5000;
   
-let bucketIndex = 0; // Start with first bucket
+  let bucketIndex = 0; // Start with first bucket
   
   // Move up if it has any positive indicators
   if (rating >= 3.8 || popularity > 100 || recent) bucketIndex = 1;
@@ -946,7 +946,7 @@ function QuickSellInterface({ buckets, onTransactionComplete }) {
         ));
       }
 
-function importInventoryCSV(event) {
+      function importInventoryCSV(event) {
         const file = event.target.files[0];
         if (!file) return;
         
