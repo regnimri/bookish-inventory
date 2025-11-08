@@ -242,20 +242,21 @@ function enhancedTagging(categories = [], description = '', title = '') {
       return themes.length > 0 ? themes[0] : BLIND_DATE_THEMES[Math.floor(Math.random() * BLIND_DATE_THEMES.length)];
     }
 
-    function isGoodBlindDateCandidate(book, purchaseCost) {
+function isGoodBlindDateCandidate(book, purchaseCost) {
       const cost = parseFloat(purchaseCost) || 0;
       const rating = book.averageRating || 0;
       const popularity = book.ratingsCount || 0;
-      const hasDescription = (book.description || '').length > 100;
+      const hasDescription = (book.description || '').length > 50;
       
-      // Good candidates: decent rating, not too popular, interesting description, cheap acquisition
+      // More relaxed criteria for better candidate selection
       return (
-        rating >= 3.5 && 
-        rating <= 4.3 && 
-        popularity > 10 && 
-        popularity < 2000 && 
+        cost <= 4.0 && 
         hasDescription && 
-        cost <= 3.0
+        (
+          (rating >= 3.5 && rating <= 4.5) || 
+          (popularity > 5 && popularity < 5000) || 
+          rating === 0
+        )
       );
     }
 
@@ -643,20 +644,22 @@ function enhancedTagging(categories = [], description = '', title = '') {
   const strong = rating >= 4.0 && popularity > 1000;
   const exceptional = rating >= 4.3 && popularity > 5000;
   
-  let bucketIndex = 0; // Green $2 (Browse & Go)
+let bucketIndex = 0; // Start with first bucket
   
-  // Basic quality indicators move to Solid Picks ($4)
-  if (rating >= 3.8 || popularity > 300) bucketIndex = 1;
+  // Move up if it has any positive indicators
+  if (rating >= 3.8 || popularity > 100 || recent) bucketIndex = 1;
   
-  // Good books with appeal move to Curated Finds ($6)
-  if (rating >= 4.0 || popularity > 1000 || recent || (msrp && msrp >= 20)) bucketIndex = 2;
+  // Move up if it has multiple positive indicators
+  if ((rating >= 4.0 && popularity > 100) || (recent && (rating >= 3.8 || popularity > 100)) || (msrp && msrp >= 20)) {
+    bucketIndex = 2;
+  }
   
-  // Exceptional books move to Spotlight ($12)
-  if (exceptional && recent && (msrp && msrp >= 25)) bucketIndex = 4;
+  // Move to premium if it's clearly exceptional
+  if (rating >= 4.2 && popularity > 1000 && recent && (msrp && msrp >= 25)) {
+    bucketIndex = 3;
+  }
   
-  // Note: Blind Date ($9) is handled separately in the addToInventory function
-  
-  const safeBucketIndex = Math.min(Math.max(bucketIndex, 0), buckets.length - 1);
+  const safeBucketIndex = Math.min(Math.max(bucketIndex, 0), buckets.length - 2); // Avoid blind date bucket
   return buckets[safeBucketIndex] || buckets[0];
 }
 
@@ -857,6 +860,7 @@ function QuickSellInterface({ buckets, onTransactionComplete }) {
       const [purchaseCost, setPurchaseCost] = useState("");
       const [condition, setCondition] = useState("Good");
       const [notes, setNotes] = useState("");
+      const [selectedBucket, setSelectedBucket] = useState("");
       const [buckets, setBuckets] = useLocalStorage("bookish_buckets_v3", DEFAULT_BUCKETS);
       const [view, setView] = useState("scan");
       const [filter, setFilter] = useState("");
@@ -898,7 +902,9 @@ function QuickSellInterface({ buckets, onTransactionComplete }) {
         if (!current) return;
         
         const tags = enhancedTagging(current.categories, current.description, current.title);
-        const bucket = suggestBucket(current, buckets);
+        const bucket = selectedBucket ? 
+          buckets.find(b => b.color === selectedBucket) || suggestBucket(current, buckets) : 
+          suggestBucket(current, buckets);
         const blindDateCandidate = isGoodBlindDateCandidate(current, purchaseCost);
         const blindDateTheme = blindDateCandidate ? suggestBlindDateTheme(current) : null;
         
@@ -922,6 +928,7 @@ function QuickSellInterface({ buckets, onTransactionComplete }) {
         setPurchaseCost("");
         setCondition("Good");
         setNotes("");
+        setSelectedBucket("");
         setCurrent(null);
         setQuery("");
         setResults([]);
@@ -939,6 +946,53 @@ function QuickSellInterface({ buckets, onTransactionComplete }) {
         ));
       }
 
+function importInventoryCSV(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const csv = e.target.result;
+            const lines = csv.split('\n');
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            
+            const imported = [];
+            for (let i = 1; i < lines.length; i++) {
+              if (!lines[i].trim()) continue;
+              
+              const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+              const book = {
+                id: uid(),
+                title: values[0] || '',
+                authors: values[1] ? values[1].split('; ') : [],
+                isbn13: values[2] || '',
+                isbn10: values[3] || '',
+                tags: values[4] ? values[4].split('; ') : [],
+                bucketColor: values[5] || 'sage',
+                targetPrice: parseFloat(values[6]) || 2,
+                purchaseCost: values[7] || '',
+                condition: values[8] || 'Good',
+                averageRating: values[9] ? parseFloat(values[9]) : null,
+                pageCount: values[10] ? parseInt(values[10]) : null,
+                blindDateCandidate: values[11] === 'Yes',
+                blindDateTheme: values[12] || '',
+                sold: values[13] === 'Yes',
+                notes: values[14] || '',
+                addedAt: new Date().toISOString()
+              };
+              imported.push(book);
+            }
+            
+            setInventory(prev => [...imported, ...prev]);
+            console.log(`Imported ${imported.length} books`);
+          } catch (error) {
+            console.error('Import error:', error);
+          }
+        };
+        reader.readAsText(file);
+      }
+      
       function exportInventoryCSV() {
         const headers = [
           "Title", "Authors", "ISBN-13", "ISBN-10", "Tags", "Bucket Color", "Price", 
@@ -1015,6 +1069,7 @@ function QuickSellInterface({ buckets, onTransactionComplete }) {
         );
       });
 
+      
       const bucketChipClass = (color) => {
         const baseClass = "px-2 py-1 rounded-full text-xs font-medium border ";
         switch (color) {
@@ -1248,6 +1303,24 @@ function QuickSellInterface({ buckets, onTransactionComplete }) {
                             <option value="Very Good">Very Good</option>
                             <option value="Good">Good</option>
                             <option value="Fair">Fair</option>
+                          </select>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-cottage-moss mb-1">
+                            Price Bucket Override
+                          </label>
+                          <select
+                            value={selectedBucket || ''}
+                            onChange={(e) => setSelectedBucket(e.target.value)}
+                            className="w-full px-3 py-2 border border-cottage-gray rounded-lg"
+                          >
+                            <option value="">Auto-suggest</option>
+                            {buckets.map(bucket => (
+                              <option key={bucket.color} value={bucket.color}>
+                                {bucket.label} (${bucket.price})
+                              </option>
+                            ))}
                           </select>
                         </div>
                         
@@ -1751,6 +1824,21 @@ Focus on creating an engaging customer experience with groupings like "Cozy Wint
             >
               Generate Claude Consultation Prompt
             </button>
+          </div>
+</button>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={importInventoryCSV}
+              className="hidden"
+              id="csv-import"
+            />
+            <label
+              htmlFor="csv-import"
+              className="w-full px-4 py-2 bg-cottage-rose text-cottage-moss rounded-lg hover:bg-cottage-rose cursor-pointer text-center block"
+            >
+              Import Inventory CSV
+            </label>
           </div>
           <p className="text-sm text-cottage-gray mt-3">
             The Claude consultation prompt includes your inventory summary and asks for 
